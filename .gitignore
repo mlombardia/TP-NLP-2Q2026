@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Proyecto ---
+/data/
+/models/
+/results/*
+!/results/figures/

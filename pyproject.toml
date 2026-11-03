@@ -1,0 +1,67 @@
+[project]
+name = "nlp-tp"
+version = "0.1.0"
+description = "Entender quien escribe mal: robustez de clasificadores de intenciones en español frente al ruido."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "datasets>=3.0",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "scikit-learn>=1.5",
+    "fasttext-numpy2-wheel>=0.9.2",
+    "transformers>=4.45",
+    "accelerate>=1.0",
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+cpu = ["torch>=2.4"]
+cu130 = ["torch>=2.4"]
+
+[dependency-groups]
+dev = [
+    "jupyterlab>=4.2",
+    "ipykernel>=6.29",
+    "nbconvert>=7.16",
+    "pandas-stubs>=3.0",
+    "pytest>=9.1.1",
+]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.11"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.uv]
+package = false
+conflicts = [[{ extra = "cpu" }, { extra = "cu130" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-cu130", extra = "cu130" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
