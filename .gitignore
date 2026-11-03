@@ -224,3 +224,13 @@ __marimo__/
 /models/
 /results/*
 !/results/figures/
+
+# LaTeX
+informe/*.aux
+informe/*.bbl
+informe/*.bcf
+informe/*.blg
+informe/*.fdb_latexmk
+informe/*.fls
+informe/*.out
+informe/*.run.xml

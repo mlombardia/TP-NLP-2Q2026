@@ -14,6 +14,7 @@ from tp.data import DATA_REVISION, MODELS_DIR, SEED
 
 NOT_TRAINED = "El modelo no está entrenado: llamar a fit() o load() primero."
 
+
 class TfidfModel:
     def __init__(self, analyzer: str, ngram_range: tuple[int, int], seed: int = SEED):
         self.config = {
@@ -62,11 +63,13 @@ class TfidfModel:
     def exists(self, path: Path) -> bool:
         return path.with_suffix(".joblib").exists()
 
+
 def _train_fasttext(data_path: str, model_path: str, params: dict):
     import fasttext
 
     model = fasttext.train_supervised(data_path, verbose=0, thread=1, **params)
     model.save_model(model_path)
+
 
 class FastTextModel:
     def __init__(self, minn: int, maxn: int, seed: int = SEED):
@@ -123,6 +126,7 @@ class FastTextModel:
 
     def exists(self, path: Path) -> bool:
         return path.with_suffix(".bin").exists()
+
 
 class TransformerModel:
     def __init__(
@@ -244,6 +248,7 @@ class TransformerModel:
     def exists(self, path: Path) -> bool:
         return (path / "config.json").exists()
 
+
 MODELS = {
     "tfidf_word": lambda seed=SEED: TfidfModel("word", (1, 2), seed),
     "tfidf_char": lambda seed=SEED: TfidfModel("char_wb", (2, 5), seed),
@@ -256,8 +261,10 @@ MODELS = {
 # TF-IDF + regresión logística (solver lbfgs) da el mismo modelo con cualquier semilla.
 STOCHASTIC = {"fasttext_word", "fasttext", "beto"}
 
+
 def config_hash(config: dict) -> str:
     return hashlib.sha1(json.dumps(config, sort_keys=True).encode()).hexdigest()[:10]
+
 
 def cache_path(name: str, model) -> Path:
     """Ruta del modelo guardado: `models/<nombre>-<hash>`.
@@ -267,6 +274,7 @@ def cache_path(name: str, model) -> Path:
     cargarse en silencio uno entrenado con otra configuración.
     """
     return MODELS_DIR / f"{name}-{config_hash(model.config | {'data': DATA_REVISION})}"
+
 
 # Modelos que ven la palabra completa vs. los que ven fragmentos de palabra.
 SUBWORD = {

@@ -1,3 +1,5 @@
+import textwrap
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -30,7 +32,20 @@ PERTURBATION_LABELS = {
     "colloquial": "Vocabulario coloquial",
     "mixed": "Combinado",
 }
-GROUP_COLORS = {"Subpalabras": "#2a78d6", "Palabras completas": "#eb6834"}
+# BETO va aparte: su vocabulario WordPiece es fijo y se comporta distinto de los
+# n-gramas de caracteres, así que promediarlos juntos esconde la diferencia.
+GROUPS = {
+    "tfidf_word": "Palabras completas",
+    "fasttext_word": "Palabras completas",
+    "tfidf_char": "Subpalabras (n-gramas de caracteres)",
+    "fasttext": "Subpalabras (n-gramas de caracteres)",
+    "beto": "Subpalabras (WordPiece)",
+}
+GROUP_COLORS = {
+    "Palabras completas": "#eb6834",
+    "Subpalabras (n-gramas de caracteres)": "#2a78d6",
+    "Subpalabras (WordPiece)": "#e87ba4",
+}
 TEXT, TEXT_2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 BLUES = LinearSegmentedColormap.from_list(
     "blues", ["#cde2fb", "#86b6ef", "#3987e5", "#256abf", "#184f95", "#0d366b"]
@@ -59,13 +74,20 @@ plt.rcParams.update(
     }
 )
 
+
 def _models(df):
     return [m for m in MODEL_LABELS if m in set(df["model"])]
+
+
+def _wrap(label, width=14):
+    return textwrap.fill(label, width)
+
 
 def _save(fig, name):
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGURES_DIR / f"{name}.png", dpi=200, bbox_inches="tight")
     return fig
+
 
 def relative_drop(metrics: pd.DataFrame, metric: str = "f1_macro") -> pd.DataFrame:
     """Caída relativa (%) de cada conjunto con ruido respecto de validation limpio.
@@ -79,6 +101,7 @@ def relative_drop(metrics: pd.DataFrame, metric: str = "f1_macro") -> pd.DataFra
         1
     ) + 0.0
     return noisy
+
 
 def plot_clean(metrics):
     """Rendimiento sin ruido sobre validation.
@@ -117,6 +140,7 @@ def plot_clean(metrics):
     fig.tight_layout()
     return _save(fig, "1_rendimiento_limpio")
 
+
 def plot_degradation(metrics, metric="f1_macro"):
     metrics = average_seeds(metrics)
     val = metrics[metrics["split"] == "validation"]
@@ -129,9 +153,11 @@ def plot_degradation(metrics, metric="f1_macro"):
         nrows, ncols, figsize=(4.6 * ncols, 4 * nrows), sharex=True, sharey=True
     )
     axes = np.atleast_2d(axes)
+    spare = None  # primer panel sobrante: ahí va la leyenda
     for k, ax in enumerate(axes.flat):
         if k >= len(perts):
-            ax.set_visible(False)
+            ax.set_axis_off()
+            spare = spare or ax
         elif k + ncols >= len(perts):  # sin panel visible debajo: mostrar el eje x
             ax.set_xlabel("Intensidad del ruido")
             ax.xaxis.set_tick_params(labelbottom=True)
@@ -158,17 +184,27 @@ def plot_degradation(metrics, metric="f1_macro"):
     for ax in axes[:, 0]:
         ax.set_ylabel("F1 macro" if metric == "f1_macro" else metric)
     handles, labels = axes.flat[0].get_legend_handles_labels()
-    fig.legend(
-        handles, labels, loc="upper center", ncol=len(models), bbox_to_anchor=(0.5, 1.0)
-    )
+    if spare is not None:
+        spare.legend(handles, labels, loc="center", fontsize=12)
+        title_y = 1.02
+    else:
+        fig.legend(
+            handles,
+            labels,
+            loc="upper center",
+            ncol=len(models),
+            bbox_to_anchor=(0.5, 1.0),
+        )
+        title_y = 1.04
     fig.suptitle(
         "Degradación del rendimiento según tipo e intensidad del ruido "
         "(línea punteada = palabras completas)",
-        y=1.04,
+        y=title_y,
         fontweight="bold",
     )
     fig.tight_layout()
     return _save(fig, "2_curvas_degradacion")
+
 
 def plot_drop_heatmap(metrics, intensity=1.0):
     drop = relative_drop(metrics)
@@ -193,9 +229,7 @@ def plot_drop_heatmap(metrics, intensity=1.0):
             )
     ax.set_xticks(
         range(table.shape[1]),
-        [PERTURBATION_LABELS[p] for p in table.columns],
-        rotation=20,
-        ha="right",
+        [_wrap(PERTURBATION_LABELS[p]) for p in table.columns],
     )
     ax.set_yticks(range(table.shape[0]), [MODEL_LABELS[m] for m in table.index])
     ax.grid(False)
@@ -209,16 +243,16 @@ def plot_drop_heatmap(metrics, intensity=1.0):
     fig.tight_layout()
     return _save(fig, "3_heatmap_caida")
 
+
 def plot_word_vs_subword(metrics, intensity=1.0):
     drop = relative_drop(metrics)
     drop = drop[drop["intensity"] == intensity].copy()
-    group_names = {True: "Subpalabras", False: "Palabras completas"}
-    drop["group"] = drop["model"].map(SUBWORD).map(group_names)
+    drop["group"] = drop["model"].map(GROUPS)
     table = drop.groupby(["perturbation", "group"])["drop_pct"].mean().unstack()
     table = table.loc[[p for p in PERTURBATION_LABELS if p in table.index]]
     groups = [g for g in GROUP_COLORS if g in table.columns]
-    fig, ax = plt.subplots(figsize=(11, 4.5))
-    x, w = np.arange(len(table)), 0.38
+    fig, ax = plt.subplots(figsize=(12, 4.5))
+    x, w = np.arange(len(table)), 0.8 / len(groups)
     for k, g in enumerate(groups):
         offset = (k - (len(groups) - 1) / 2) * w
         bars = ax.bar(
@@ -230,11 +264,10 @@ def plot_word_vs_subword(metrics, intensity=1.0):
             edgecolor=SURFACE,
             linewidth=2,
         )
-        ax.bar_label(bars, fmt="%.1f%%", padding=2, color=TEXT, fontsize=9)
-    ax.set_xticks(
-        x, [PERTURBATION_LABELS[p] for p in table.index], rotation=15, ha="right"
-    )
+        ax.bar_label(bars, fmt="%.1f%%", padding=2, color=TEXT, fontsize=8)
+    ax.set_xticks(x, [_wrap(PERTURBATION_LABELS[p]) for p in table.index])
     ax.set_ylabel("Caída relativa promedio del F1 macro (%)")
+    ax.set_ylim(top=table.to_numpy().max() * 1.3)  # aire arriba para la leyenda
     ax.grid(axis="x", visible=False)
     ax.legend(loc="upper left")
     ax.set_title(
@@ -242,6 +275,7 @@ def plot_word_vs_subword(metrics, intensity=1.0):
     )
     fig.tight_layout()
     return _save(fig, "4_palabras_vs_subpalabras")
+
 
 def plot_intent_drop(
     predictions,
@@ -296,6 +330,7 @@ def plot_intent_drop(
     )
     fig.tight_layout()
     return _save(fig, "5_intenciones_afectadas")
+
 
 def plot_all(metrics, predictions):
     return [

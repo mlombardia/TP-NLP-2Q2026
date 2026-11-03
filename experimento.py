@@ -43,11 +43,13 @@ PACKAGES = [
     "transformers",
 ]
 
+
 def merge(new: pd.DataFrame, path, models):
     if path.exists():
         old = pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
         new = pd.concat([old[~old["model"].isin(models)], new], ignore_index=True)
     return new
+
 
 def git_commit() -> str:
     """Commit actual; "-dirty" si hay cambios sin commitear en archivos versionados."""
@@ -64,6 +66,7 @@ def git_commit() -> str:
         return "desconocido"
     return sha + ("-dirty" if dirty else "")
 
+
 def versions() -> dict[str, str]:
     out = {"python": platform.python_version()}
     for pkg in PACKAGES:
@@ -72,6 +75,7 @@ def versions() -> dict[str, str]:
         except metadata.PackageNotFoundError:
             pass
     return out
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -160,6 +164,7 @@ def main():
     with RUNS_FILE.open("a") as f:
         f.write(json.dumps(run, ensure_ascii=False) + "\n")
     print(f"Resultados en {METRICS_FILE} y {PREDICTIONS_FILE}; registro en {RUNS_FILE}")
+
 
 if __name__ == "__main__":
     main()

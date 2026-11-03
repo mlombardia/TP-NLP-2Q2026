@@ -97,6 +97,7 @@ COLLOQUIAL = {
     "dinero": "guita",
 }
 
+
 def _neighbors() -> dict[str, str]:
     neigh = {}
     for r, row in enumerate(KEYBOARD_ROWS):
@@ -112,15 +113,19 @@ def _neighbors() -> dict[str, str]:
             neigh[ch] = "".join(near)
     return neigh
 
+
 NEIGHBORS = _neighbors()
+
 
 def _dict_regex(mapping: dict[str, str]) -> re.Pattern:
     keys = sorted(mapping, key=len, reverse=True)
     return re.compile(r"\b(" + "|".join(map(re.escape, keys)) + r")\b", re.IGNORECASE)
 
+
 ABBREV_RE = _dict_regex(ABBREVIATIONS)
 VOSEO_RE = _dict_regex(VOSEO)
 COLLOQUIAL_RE = _dict_regex(COLLOQUIAL)
+
 
 def _unit_rng(key: str, i: int) -> random.Random:
     """Generador propio de la unidad i (palabra, carácter u ocurrencia) de una frase.
@@ -132,6 +137,7 @@ def _unit_rng(key: str, i: int) -> random.Random:
     Una semilla str se hashea con SHA-512, así que no depende de PYTHONHASHSEED.
     """
     return random.Random(f"{key}-{i}")
+
 
 def _replace_from_dict(text, p, key, pattern, mapping):
     k = itertools.count()
@@ -148,6 +154,7 @@ def _strip_accent(ch: str) -> str:
         c for c in unicodedata.normalize("NFD", ch) if unicodedata.category(c) != "Mn"
     )
 
+
 def remove_accents(text: str, p: float, key: str) -> str:
     out = []
     for i, ch in enumerate(text):
@@ -157,18 +164,22 @@ def remove_accents(text: str, p: float, key: str) -> str:
         out.append(ch)
     return "".join(out)
 
+
 def lowercase_no_punct(text: str, p: float, key: str) -> str:
     if _unit_rng(key, 0).random() >= p:
         return text
     text = text.lower().translate(str.maketrans("", "", string.punctuation + "¿¡"))
     return " ".join(text.split())
 
+
 def _key_neighbors(ch: str) -> str:
     # Las vocales con tilde están en la misma tecla que la vocal sin tilde.
     ch = ch.lower()
     return NEIGHBORS.get(ch) or NEIGHBORS.get(_strip_accent(ch), "")
 
+
 TYPO_OPS = ["neighbor", "delete", "duplicate", "swap"]
+
 
 def _typo(word: str, rng: random.Random) -> str:
     """Un error de tipeo. Primero se elige la operación (equiprobables) y después una
@@ -191,6 +202,7 @@ def _typo(word: str, rng: random.Random) -> str:
         return word[:i] + word[i + 1] + word[i] + word[i + 2 :]
     return word[:i] + word[i + 1 :]
 
+
 def typos(text: str, p: float, key: str) -> str:
     out = []
     for i, w in enumerate(text.split()):
@@ -200,14 +212,18 @@ def typos(text: str, p: float, key: str) -> str:
         out.append(w)
     return " ".join(out)
 
+
 def abbreviations(text: str, p: float, key: str) -> str:
     return _replace_from_dict(text, p, key, ABBREV_RE, ABBREVIATIONS)
+
 
 def voseo(text: str, p: float, key: str) -> str:
     return _replace_from_dict(text, p, key, VOSEO_RE, VOSEO)
 
+
 def colloquial(text: str, p: float, key: str) -> str:
     return _replace_from_dict(text, p, key, COLLOQUIAL_RE, COLLOQUIAL)
+
 
 def mixed(text: str, p: float, key: str) -> str:
     # Los diccionarios buscan palabras bien escritas: se aplican antes que el ruido.
@@ -217,6 +233,7 @@ def mixed(text: str, p: float, key: str) -> str:
     for f in (*dictionaries, lowercase_no_punct, remove_accents, typos):
         text = f(text, p, f"{key}-{f.__name__}")
     return text
+
 
 PERTURBATIONS = {
     "no_accents": remove_accents,
@@ -228,9 +245,11 @@ PERTURBATIONS = {
     "mixed": mixed,
 }
 
+
 def perturb(texts: list[str], name: str, p: float, seed: int = SEED) -> list[str]:
     # Frases idénticas reciben la misma perturbación (la clave es el texto).
     return [PERTURBATIONS[name](t, p, f"{seed}-{name}-{t}") for t in texts]
+
 
 def make_perturbed_sets(
     texts: list[str], n_seeds: int = N_SEEDS

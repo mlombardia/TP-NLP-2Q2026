@@ -30,6 +30,7 @@ def compute_metrics(y_true, y_pred) -> dict[str, float]:
     )
     return {"accuracy": float(accuracy_score(y_true, y_pred)), "f1_macro": float(f1)}
 
+
 def per_class_f1(y_true, y_pred) -> dict[str, float]:
     labels = sorted(set(y_true))
     scores = f1_score(
@@ -40,6 +41,7 @@ def per_class_f1(y_true, y_pred) -> dict[str, float]:
         zero_division=0,  # pyright: ignore[reportArgumentType]
     )
     return dict(zip(labels, np.asarray(scores).tolist(), strict=True))
+
 
 def changed_metrics(original, texts, labels, y_pred, y_pred_clean) -> dict[str, float]:
     """Cuánto cambió el conjunto y cómo rinde el modelo sobre las frases alteradas.
@@ -60,6 +62,7 @@ def changed_metrics(original, texts, labels, y_pred, y_pred_clean) -> dict[str, 
         "accuracy_changed": float((y_pred[changed] == y).mean()),
         "accuracy_changed_clean": float((y_pred_clean[changed] == y).mean()),
     }
+
 
 def evaluate(
     model_name, model, sets, labels, split
@@ -114,6 +117,7 @@ def evaluate(
         )
     return pd.DataFrame(metrics), pd.concat(preds, ignore_index=True)
 
+
 METRIC_COLUMNS = [
     "accuracy",
     "f1_macro",
@@ -121,6 +125,7 @@ METRIC_COLUMNS = [
     "accuracy_changed",
     "accuracy_changed_clean",
 ]
+
 
 def average_seeds(metrics: pd.DataFrame) -> pd.DataFrame:
     """Una fila por modelo × split × perturbación × intensidad, promediando semillas.
@@ -135,6 +140,7 @@ def average_seeds(metrics: pd.DataFrame) -> pd.DataFrame:
     out = groups.mean().join(groups.std().add_suffix("_std"))
     return out.join(groups.size().rename("n_seeds")).reset_index()
 
+
 def paired_bootstrap(
     values, n_boot: int = 1000, alpha: float = 0.05, seed: int = SEED
 ) -> tuple[float, float, float]:
@@ -145,6 +151,7 @@ def paired_bootstrap(
     means = values[idx].mean(axis=1)
     low, high = np.quantile(means, [alpha / 2, 1 - alpha / 2])
     return float(values.mean()), float(low), float(high)
+
 
 def _sentence_drops(predictions: pd.DataFrame) -> pd.Series:
     """Caída de accuracy de cada frase: acierto limpio (0 o 1) menos la fracción de
@@ -163,6 +170,7 @@ def _sentence_drops(predictions: pd.DataFrame) -> pd.Series:
     both["drop"] = both["correct_clean"] - both["correct"]
     return both.set_index(["model", "split", *condition, "idx"])["drop"]
 
+
 def _bootstrap_by_condition(drops: pd.Series, levels, n_boot) -> pd.DataFrame:
     rows = []
     for key, d in drops.groupby(level=levels):
@@ -172,6 +180,7 @@ def _bootstrap_by_condition(drops: pd.Series, levels, n_boot) -> pd.DataFrame:
             | {"drop": mean, "ci_low": low, "ci_high": high, "n": len(d)}
         )
     return pd.DataFrame(rows)
+
 
 def accuracy_drops(predictions: pd.DataFrame, n_boot: int = 1000) -> pd.DataFrame:
     """Caída de accuracy (limpio − con ruido) por condición, con IC 95 %.
@@ -183,6 +192,7 @@ def accuracy_drops(predictions: pd.DataFrame, n_boot: int = 1000) -> pd.DataFram
     """
     levels = ["model", "split", "perturbation", "intensity"]
     return _bootstrap_by_condition(_sentence_drops(predictions), levels, n_boot)
+
 
 def compare_drops(
     predictions: pd.DataFrame, model_a: str, model_b: str, n_boot: int = 1000
